@@ -191,13 +191,25 @@ def main():
         
         if st.button("Ajouter cette famille", type="primary"):
             if new_category_name and new_category_terms:
-                terms_list = [term.strip() for term in new_category_terms.split('\n') if term.strip()]
-                st.session_state.categories_config[new_category_name] = terms_list
-                st.session_state.categorizer.set_categories(st.session_state.categories_config)
-                st.success(f"Famille '{new_category_name}' ajoutée avec {len(terms_list)} termes !")
-                st.rerun()
+                # Vérifier si la famille existe déjà
+                if new_category_name in st.session_state.categories_config:
+                    st.warning(f"La famille '{new_category_name}' existe déjà. Utilisez un autre nom.")
+                else:
+                    terms_list = [term.strip() for term in new_category_terms.split('\n') if term.strip()]
+                    if len(terms_list) > 0:
+                        st.session_state.categories_config[new_category_name] = terms_list
+                        st.session_state.categorizer.set_categories(st.session_state.categories_config)
+                        st.success(f"Famille '{new_category_name}' ajoutée avec {len(terms_list)} termes !")
+                        # Forcer le rafraîchissement
+                        st.rerun()
+                    else:
+                        st.error("Veuillez ajouter au moins un terme de référence")
             else:
                 st.error("Veuillez remplir le nom et les termes de référence")
+        
+        # Bouton pour vider les champs
+        if st.button("Vider les champs"):
+            st.rerun()
     
     with col_config2:
         st.subheader("Familles configurées")
