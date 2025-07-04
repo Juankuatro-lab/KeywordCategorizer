@@ -1,0 +1,36 @@
+# Fichier requirements.txt pour le script de catégorisation de mots-clés
+
+# Manipulation de données
+pandas>=1.5.0
+
+# Lecture/écriture de fichiers Excel
+openpyxl>=3.0.0
+
+# Expressions régulières (inclus dans Python standard)
+# re - module standard
+
+# Gestion des fichiers et chemins (inclus dans Python standard)
+# pathlib - module standard
+
+# Manipulation JSON (inclus dans Python standard)
+# json - module standard
+
+# Annotations de type (inclus dans Python 3.5+)
+# typing - module standard
+
+# Optionnel: pour une meilleure gestion des encodages CSV
+chardet>=5.0.0
+
+# Optionnel: pour des analyses plus avancées
+numpy>=1.21.0
+
+# Optionnel: pour des visualisations de statistiques
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Optionnel: pour le traitement de texte avancé
+nltk>=3.8.0
+scikit-learn>=1.1.0
+
+# Optionnel: pour une interface utilisateur simple
+click>=8.0.0
