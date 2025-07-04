@@ -99,7 +99,7 @@ class AdvancedKeywordCategorizer:
         return (best_category, best_term, best_score)
     
     def process_dataframe_preserve_structure(self, df: pd.DataFrame, keyword_column: str, 
-                                           output_columns_mapping: Dict[str, str]) -> pd.DataFrame:
+                                           output_columns_mapping: Dict[str, str]) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Traite le DataFrame en préservant EXACTEMENT la structure originale
         Ne modifie QUE les colonnes spécifiées dans output_columns_mapping
@@ -494,98 +494,6 @@ def main():
                 # Informations sur l'export
                 st.info("""
                 **Contenu des exports :**
-                • **Fichier final** : Structure exactement identique à votre fichier d'entrée avec les colonnes catégorisées
-                • **Rapport complet** : Fichier final + statistiques + configuration pour traçabilité
-                """)
-
-
-if __name__ == "__main__":
-    main())")
-            
-            with tab3:
-                st.subheader("💾 Export des résultats")
-                
-                col_export1, col_export2 = st.columns(2)
-                
-                with col_export1:
-                    st.write("**📄 Fichier principal (structure préservée)**")
-                    
-                    # Export Excel du fichier final
-                    output_main = io.BytesIO()
-                    result_df.to_excel(output_main, index=False, engine='openpyxl')
-                    excel_main_data = output_main.getvalue()
-                    
-                    st.download_button(
-                        label="📥 Télécharger fichier final (.xlsx)",
-                        data=excel_main_data,
-                        file_name=f"fichier_categorise_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
-                    )
-                    
-                    # Export CSV
-                    csv_main_data = result_df.to_csv(index=False, encoding='utf-8-sig')
-                    st.download_button(
-                        label="📥 Télécharger fichier final (.csv)",
-                        data=csv_main_data,
-                        file_name=f"fichier_categorise_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
-                
-                with col_export2:
-                    st.write("**📊 Rapport d'analyse**")
-                    
-                    # Export Excel complet avec statistiques
-                    output_complete = io.BytesIO()
-                    with pd.ExcelWriter(output_complete, engine='openpyxl') as writer:
-                        # Fichier final
-                        result_df.to_excel(writer, sheet_name='Fichier_final', index=False)
-                        
-                        # Statistiques détaillées
-                        stats_df.to_excel(writer, sheet_name='Statistiques_detail', index=False)
-                        
-                        # Synthèse
-                        synthesis_data = []
-                        for category in categories_stats.index:
-                            cat_data = stats_df[stats_df['Categorie_attribuee'] == category]
-                            synthesis_data.append({
-                                'Categorie': category,
-                                'Nombre_elements': len(cat_data),
-                                'Score_moyen': cat_data['Score_similarite'].mean(),
-                                'Pourcentage': (len(cat_data) / len(stats_df)) * 100,
-                                'Colonne_assignee': st.session_state.columns_mapping.get(category, 'Non assigné')
-                            })
-                        
-                        synthesis_df = pd.DataFrame(synthesis_data)
-                        synthesis_df.to_excel(writer, sheet_name='Synthese', index=False)
-                        
-                        # Configuration
-                        config_data = []
-                        for cat_name, terms in st.session_state.categories_config.items():
-                            for term in terms:
-                                config_data.append({
-                                    'Famille': cat_name,
-                                    'Terme_reference': term,
-                                    'Colonne_sortie': st.session_state.columns_mapping.get(cat_name, 'Non assigné')
-                                })
-                        
-                        config_df = pd.DataFrame(config_data)
-                        config_df.to_excel(writer, sheet_name='Configuration', index=False)
-                    
-                    excel_complete_data = output_complete.getvalue()
-                    
-                    st.download_button(
-                        label="📥 Télécharger rapport complet (.xlsx)",
-                        data=excel_complete_data,
-                        file_name=f"rapport_complet_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
-                    )
-                
-                # Informations sur l'export
-                st.info("""
-                **📋 Contenu des exports :**
                 • **Fichier final** : Structure exactement identique à votre fichier d'entrée avec les colonnes catégorisées
                 • **Rapport complet** : Fichier final + statistiques + configuration pour traçabilité
                 """)
