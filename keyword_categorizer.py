@@ -496,7 +496,11 @@ def main():
                 **Contenu des exports :**
                 • **Fichier final** : Structure exactement identique à votre fichier d'entrée avec les colonnes catégorisées
                 • **Rapport complet** : Fichier final + statistiques + configuration pour traçabilité
-                """))")
+                """)
+
+
+if __name__ == "__main__":
+    main())")
             
             with tab3:
                 st.subheader("💾 Export des résultats")
