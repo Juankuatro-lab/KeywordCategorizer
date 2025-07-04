@@ -157,6 +157,7 @@ class AdvancedKeywordCategorizer:
 def main():
     st.set_page_config(
         page_title="Script de catégorisation de mots-clés",
+        page_icon="https://jc-espinosa.com/wp-content/uploads/2024/06/JC-Espinosa-Favicon-blue-150x150.png",
         layout="wide"
     )
     
