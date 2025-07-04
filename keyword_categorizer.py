@@ -323,45 +323,45 @@ def main():
         st.markdown("""
         ### Description de l'outil
         
-        Cet outil utilise **l'Intelligence Artificielle avancée** pour catégoriser automatiquement des mots-clés en préservant exactement la structure de votre fichier d'entrée. 
-        Il combine plusieurs techniques NLP de pointe pour une catégorisation précise et contextuelle.
+        Cet outil utilise l'Intelligence Artificielle pour catégoriser automatiquement des mots-clés en préservant exactement la structure de votre fichier d'entrée. 
+        Il combine plusieurs techniques NLP pour une catégorisation précise et contextuelle.
         
         ### Technologies utilisées
         
-        - **Embeddings sémantiques** : Modèle Sentence-BERT multilingue pour comprendre le sens
-        - **Similarité cosinus** : Mesure de proximité sémantique dans l'espace vectoriel
-        - **TF-IDF** : Analyse de fréquence des termes pour affiner les résultats
-        - **Algorithme hybride** : Combinaison de 3 approches pour maximiser la précision
+        - **Embeddings sémantiques** : Modèle Sentence-BERT multilingue pour comprendre le sens,
+        - **Similarité cosinus** : Mesure de proximité sémantique dans l'espace vectoriel,
+        - **TF-IDF** : Analyse de fréquence des termes pour affiner les résultats,
+        - **Algorithme hybride** : Combinaison de 3 approches pour maximiser la précision.
         
         ### Fonctionnement
         
-        - **Attribution forcée** : Chaque mot-clé est obligatoirement attribué à une catégorie
-        - **Préservation de structure** : Votre fichier garde exactement sa mise en forme originale
-        - **IA contextuelle** : Comprend le sens et le contexte, pas seulement les mots-clés
-        - **Multilingue** : Fonctionne en français, anglais et autres langues européennes
-        - **Colonnes ciblées** : Seules les colonnes que vous spécifiez sont modifiées
+        - **Attribution forcée** : Chaque mot-clé est obligatoirement attribué à une catégorie,
+        - **Préservation de structure** : Votre fichier garde exactement sa mise en forme originale,
+        - **IA contextuelle** : Comprend le sens et le contexte, pas seulement les mots-clés,
+        - **Multilingue** : Fonctionne en français, anglais et autres langues européennes,
+        - **Colonnes ciblées** : Seules les colonnes que vous spécifiez sont modifiées.
         
         ### Étapes d'utilisation
         
-        1. **Configurez vos catégories** : Créez vos catégories et ajoutez les termes de référence pour chacune
-        2. **Importez votre fichier** : Chargez votre fichier Excel ou CSV avec la structure finale souhaitée
-        3. **Configurez les colonnes** : Sélectionnez la colonne des mots-clés et assignez les colonnes de sortie pour chaque catégorie
-        4. **Lancez le traitement IA** : L'outil analyse sémantiquement tous vos mots-clés et les place dans les bonnes colonnes
-        5. **Exportez les résultats** : Téléchargez votre fichier final avec les statistiques de confiance
+        1. **Configurez vos catégories** : Créez vos catégories et ajoutez les termes de référence pour chacune,
+        2. **Importez votre fichier** : Chargez votre fichier Excel ou CSV avec la structure finale souhaitée,
+        3. **Configurez les colonnes** : Sélectionnez la colonne des mots-clés et assignez les colonnes de sortie pour chaque catégorie,
+        4. **Lancez le traitement IA** : L'outil analyse sémantiquement tous vos mots-clés et les place dans les bonnes colonnes,
+        5. **Exportez les résultats** : Téléchargez votre fichier final avec les statistiques de confiance.
         
         ### Format de fichier attendu
         
         Votre fichier d'entrée doit contenir :
-        - Une colonne avec vos mots-clés à catégoriser
-        - Des colonnes vides ou existantes où placer les résultats de chaque catégorie
-        - Toute autre donnée que vous souhaitez conserver (elle sera préservée)
+        - Une colonne avec vos mots-clés à catégoriser,
+        - Des colonnes vides ou existantes où placer les résultats de chaque catégorie,
+        - Toute autre donnée que vous souhaitez conserver (elle sera préservée).
         
         ### Scores de confiance
         
-        - **0.8-1.0** : Correspondance excellente (IA très confiante)
-        - **0.6-0.8** : Correspondance bonne (contexte sémantique fort)
-        - **0.4-0.6** : Correspondance acceptable (similarité détectée)
-        - **0.0-0.4** : Correspondance faible (attribution par défaut)
+        - **0.8-1.0** : Correspondance excellente (IA très confiante),
+        - **0.6-0.8** : Correspondance bonne (contexte sémantique fort),
+        - **0.4-0.6** : Correspondance acceptable (similarité détectée),
+        - **0.0-0.4** : Correspondance faible (attribution par défaut).
         """)
     
     # CSS pour les boutons en couleur fcf192
