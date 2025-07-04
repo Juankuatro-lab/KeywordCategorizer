@@ -156,12 +156,59 @@ class AdvancedKeywordCategorizer:
 
 def main():
     st.set_page_config(
-        page_title="Catégoriseur avec Structure Préservée",
+        page_title="Script de catégorisation de mots-clés",
         layout="wide"
     )
     
-    st.title("Catégoriseur avec Préservation de Structure")
+    st.title("Script de catégorisation de mots-clés")
     st.markdown("**Préserve exactement** la mise en forme de votre fichier d'entrée, ne modifie que les colonnes spécifiées")
+    
+    # Encart d'informations et étapes d'utilisation
+    with st.expander("Informations et étapes d'utilisation"):
+        st.markdown("""
+        ### Description de l'outil
+        
+        Cet outil permet de catégoriser automatiquement des mots-clés en préservant exactement la structure de votre fichier d'entrée. 
+        Il utilise un algorithme de similarité textuelle pour attribuer chaque mot-clé à la catégorie la plus appropriée.
+        
+        ### Fonctionnement
+        
+        - **Attribution forcée** : Chaque mot-clé est obligatoirement attribué à une catégorie
+        - **Préservation de structure** : Votre fichier garde exactement sa mise en forme originale
+        - **Similarité intelligente** : Normalisation du texte, suppression des accents, comparaison par mots et séquences
+        - **Colonnes ciblées** : Seules les colonnes que vous spécifiez sont modifiées
+        
+        ### Étapes d'utilisation
+        
+        1. **Configurez vos catégories** : Créez vos catégories et ajoutez les termes de référence pour chacune
+        2. **Importez votre fichier** : Chargez votre fichier Excel ou CSV avec la structure finale souhaitée
+        3. **Configurez les colonnes** : Sélectionnez la colonne des mots-clés et assignez les colonnes de sortie pour chaque catégorie
+        4. **Lancez le traitement** : L'outil traite tous vos mots-clés et les place dans les bonnes colonnes
+        5. **Exportez les résultats** : Téléchargez votre fichier final avec les statistiques
+        
+        ### Format de fichier attendu
+        
+        Votre fichier d'entrée doit contenir :
+        - Une colonne avec vos mots-clés à catégoriser
+        - Des colonnes vides ou existantes où placer les résultats de chaque catégorie
+        - Toute autre donnée que vous souhaitez conserver (elle sera préservée)
+        """)
+    
+    # CSS pour les boutons en couleur fcf192
+    st.markdown("""
+    <style>
+    .stButton > button[kind="primary"] {
+        background-color: #fcf192 !important;
+        color: #000000 !important;
+        border: 1px solid #e6e600 !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background-color: #f0e85c !important;
+        color: #000000 !important;
+        border: 1px solid #cccc00 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     
     # Initialisation
     if 'categorizer' not in st.session_state:
@@ -170,36 +217,36 @@ def main():
         st.session_state.df_loaded = None
         st.session_state.columns_mapping = {}
     
-    # ÉTAPE 1: Configuration des catégories
-    st.header("ÉTAPE 1 : Configuration des grandes familles")
+    # Étape 1: Configuration des catégories
+    st.header("Étape 1 : Configuration des catégories")
     
     col_config1, col_config2 = st.columns([1, 1])
     
     with col_config1:
-        st.subheader("Ajouter une grande famille")
+        st.subheader("Ajouter une catégorie")
         
         new_category_name = st.text_input(
-            "Nom de la grande famille :",
+            "Nom de la catégorie :",
             placeholder="Ex: Produits, Services, Marques, Thématiques..."
         )
         
         new_category_terms = st.text_area(
-            "Termes de référence pour cette famille (un par ligne) :",
+            "Termes de référence pour cette catégorie (un par ligne) :",
             placeholder="smartphone\ntablette\nordinateur\n...",
             height=120
         )
         
-        if st.button("Ajouter cette famille", type="primary"):
+        if st.button("Ajouter cette catégorie", type="primary"):
             if new_category_name and new_category_terms:
-                # Vérifier si la famille existe déjà
+                # Vérifier si la catégorie existe déjà
                 if new_category_name in st.session_state.categories_config:
-                    st.warning(f"La famille '{new_category_name}' existe déjà. Utilisez un autre nom.")
+                    st.warning(f"La catégorie '{new_category_name}' existe déjà. Utilisez un autre nom.")
                 else:
                     terms_list = [term.strip() for term in new_category_terms.split('\n') if term.strip()]
                     if len(terms_list) > 0:
                         st.session_state.categories_config[new_category_name] = terms_list
                         st.session_state.categorizer.set_categories(st.session_state.categories_config)
-                        st.success(f"Famille '{new_category_name}' ajoutée avec {len(terms_list)} termes !")
+                        st.success(f"Catégorie '{new_category_name}' ajoutée avec {len(terms_list)} termes !")
                         # Forcer le rafraîchissement
                         st.rerun()
                     else:
@@ -212,7 +259,7 @@ def main():
             st.rerun()
     
     with col_config2:
-        st.subheader("Familles configurées")
+        st.subheader("Catégories configurées")
         
         if st.session_state.categories_config:
             for cat_name, terms in st.session_state.categories_config.items():
@@ -228,17 +275,17 @@ def main():
                         st.session_state.categorizer.set_categories(st.session_state.categories_config)
                         st.rerun()
         else:
-            st.info("Aucune famille configurée. Ajoutez au moins une famille pour commencer.")
+            st.info("Aucune catégorie configurée. Ajoutez au moins une catégorie pour commencer.")
     
     st.divider()
     
-    # ÉTAPE 2: Import du fichier
-    st.header("ÉTAPE 2 : Import du fichier structure")
+    # Étape 2: Import du fichier
+    st.header("Étape 2 : Import du fichier structure")
     
     uploaded_file = st.file_uploader(
         "Choisissez votre fichier Excel ou CSV avec la structure finale souhaitée",
         type=['xlsx', 'xls', 'csv'],
-        help="Ce fichier doit contenir : colonne des mots-clés + colonnes vides pour chaque grande famille"
+        help="Ce fichier doit contenir : colonne des mots-clés + colonnes vides pour chaque catégorie"
     )
     
     if uploaded_file is not None:
@@ -264,7 +311,7 @@ def main():
     
     # ÉTAPE 3: Configuration des colonnes
     if st.session_state.df_loaded is not None and st.session_state.categories_config:
-        st.header("ÉTAPE 3 : Configuration des colonnes")
+        st.header("Étape 3 : Configuration des colonnes")
         
         df = st.session_state.df_loaded
         
@@ -291,7 +338,7 @@ def main():
         with col_mapping2:
             st.subheader("Attribution des colonnes de sortie")
             
-            st.write("Pour chaque grande famille, choisissez dans quelle colonne mettre le résultat :")
+            st.write("Pour chaque catégorie, choisissez dans quelle colonne mettre le résultat :")
             
             columns_mapping = {}
             
@@ -300,7 +347,7 @@ def main():
                     f"Colonne pour '{category_name}' :",
                     options=df.columns.tolist(),
                     key=f"mapping_{category_name}",
-                    help=f"Les termes de la famille '{category_name}' seront placés dans cette colonne"
+                    help=f"Les termes de la catégorie '{category_name}' seront placés dans cette colonne"
                 )
                 columns_mapping[category_name] = output_column
             
@@ -308,7 +355,7 @@ def main():
             
             # Validation
             if len(set(columns_mapping.values())) != len(columns_mapping.values()):
-                st.warning("Attention : Vous avez assigné plusieurs familles à la même colonne !")
+                st.warning("Attention : Vous avez assigné plusieurs catégories à la même colonne !")
         
         # Aperçu de la structure
         st.subheader("Aperçu de la structure du fichier")
@@ -323,7 +370,7 @@ def main():
             st.write("**Configuration :**")
             st.write(f"• Colonne mots-clés : `{keyword_column}`")
             st.write(f"• Nombre de lignes : `{len(df):,}`")
-            st.write(f"• Familles configurées : `{len(st.session_state.categories_config)}`")
+            st.write(f"• Catégories configurées : `{len(st.session_state.categories_config)}`")
         
         with col_summary2:
             st.write("**Attribution des colonnes :**")
@@ -332,10 +379,10 @@ def main():
         
         st.divider()
         
-        # ÉTAPE 4: Traitement
-        st.header("ÉTAPE 4 : Traitement")
+        # Étape 4: Traitement
+        st.header("Étape 4 : Traitement")
         
-        if st.button("LANCER LA CATÉGORISATION", type="primary", use_container_width=True):
+        if st.button("Lancer la catégorisation", type="primary", use_container_width=True):
             if not columns_mapping:
                 st.error("Veuillez configurer l'attribution des colonnes")
                 return
@@ -370,9 +417,9 @@ def main():
                 except Exception as e:
                     st.error(f"Erreur lors du traitement : {str(e)}")
         
-        # ÉTAPE 5: Résultats et export
+        # Étape 5: Résultats et export
         if 'result_df' in st.session_state:
-            st.header("ÉTAPE 5 : Résultats et Export")
+            st.header("Étape 5 : Résultats et Export")
             
             result_df = st.session_state.result_df
             stats_df = st.session_state.stats_df
@@ -493,7 +540,7 @@ def main():
                         for cat_name, terms in st.session_state.categories_config.items():
                             for term in terms:
                                 config_data.append({
-                                    'Famille': cat_name,
+                                    'Categorie': cat_name,
                                     'Terme_reference': term,
                                     'Colonne_sortie': st.session_state.columns_mapping.get(cat_name, 'Non assigné')
                                 })
