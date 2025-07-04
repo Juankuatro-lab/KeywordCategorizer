@@ -1,5 +1,16 @@
+# Requirements essentiels pour l'application Streamlit de catégorisation
+
+# Interface web
 streamlit>=1.28.0
+
+# Manipulation de données
 pandas>=1.5.0
+
+# Lecture/écriture Excel (OBLIGATOIRE)
 openpyxl>=3.0.0
+
+# Encodage automatique CSV
 chardet>=5.0.0
+
+# Calculs numériques
 numpy>=1.21.0
