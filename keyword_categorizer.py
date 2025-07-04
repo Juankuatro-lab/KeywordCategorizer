@@ -1,25 +1,22 @@
+import streamlit as st
 import pandas as pd
 import re
+import json
+import io
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
-import json
 
 class KeywordCategorizer:
     """
     Classe pour catégoriser des mots-clés basée sur des règles définies
     """
     
-    def __init__(self, config_file: Optional[str] = None):
+    def __init__(self):
         """
-        Initialise le catégoriseur avec un fichier de configuration optionnel
+        Initialise le catégoriseur
         """
         self.categories = {}
-        self.rules = {}
-        
-        if config_file and Path(config_file).exists():
-            self.load_config(config_file)
-        else:
-            self.setup_default_categories()
+        self.setup_default_categories()
     
     def setup_default_categories(self):
         """
@@ -43,29 +40,11 @@ class KeywordCategorizer:
             }
         }
     
-    def load_config(self, config_file: str):
+    def load_config_from_dict(self, config_dict: dict):
         """
-        Charge la configuration depuis un fichier JSON
+        Charge la configuration depuis un dictionnaire
         """
-        try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-                self.categories = config.get('categories', {})
-                self.rules = config.get('rules', {})
-        except Exception as e:
-            print(f"Erreur lors du chargement de la configuration: {e}")
-            self.setup_default_categories()
-    
-    def save_config(self, config_file: str):
-        """
-        Sauvegarde la configuration dans un fichier JSON
-        """
-        config = {
-            'categories': self.categories,
-            'rules': self.rules
-        }
-        with open(config_file, 'w', encoding='utf-8') as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
+        self.categories = config_dict.get('categories', {})
     
     def add_category(self, main_category: str, sub_category: str, keywords: List[str]):
         """
@@ -105,141 +84,247 @@ class KeywordCategorizer:
         
         return best_match
     
-    def process_file(self, input_file: str, output_file: str, keyword_column: str = 'A', 
-                    additional_columns: List[str] = None):
+    def process_dataframe(self, df: pd.DataFrame, keyword_column: str) -> pd.DataFrame:
         """
-        Traite un fichier Excel ou CSV et ajoute les colonnes de catégorisation
+        Traite un DataFrame et ajoute les colonnes de catégorisation
         """
-        # Détection du type de fichier
-        file_extension = Path(input_file).suffix.lower()
+        # Vérification de la colonne
+        if keyword_column not in df.columns:
+            available_cols = ", ".join(df.columns.tolist())
+            raise ValueError(f"Colonne '{keyword_column}' non trouvée. Colonnes disponibles: {available_cols}")
         
-        try:
-            if file_extension in ['.xlsx', '.xls']:
-                df = pd.read_excel(input_file)
-            elif file_extension == '.csv':
-                df = pd.read_csv(input_file, encoding='utf-8')
-            else:
-                raise ValueError(f"Format de fichier non supporté: {file_extension}")
-            
-            # Identification de la colonne des mots-clés
-            if keyword_column in df.columns:
-                keyword_col = keyword_column
-            elif keyword_column.upper() in df.columns:
-                keyword_col = keyword_column.upper()
-            else:
-                # Si la colonne n'existe pas, prendre la première colonne
-                keyword_col = df.columns[0]
-                print(f"Colonne '{keyword_column}' non trouvée. Utilisation de '{keyword_col}'")
-            
-            # Traitement des mots-clés
-            results = []
-            for _, row in df.iterrows():
-                keyword = str(row[keyword_col])
-                if pd.notna(keyword) and keyword.strip():
-                    main_cat, sub_cat, confidence = self.categorize_keyword(keyword)
-                    results.append({
-                        'Mot-clé': keyword,
-                        'Catégorie principale': main_cat,
-                        'Sous-catégorie': sub_cat,
-                        'Score de confiance': round(confidence, 2),
-                        'Données originales': row.to_dict()
-                    })
-            
-            # Création du DataFrame de résultats
-            results_df = pd.DataFrame(results)
-            
-            # Ajout des colonnes supplémentaires si spécifiées
-            if additional_columns:
-                for col in additional_columns:
-                    if col in df.columns:
-                        results_df[col] = df[col]
-            
-            # Sauvegarde
-            output_extension = Path(output_file).suffix.lower()
-            if output_extension in ['.xlsx', '.xls']:
-                results_df.to_excel(output_file, index=False)
-            else:
-                results_df.to_csv(output_file, index=False, encoding='utf-8')
-            
-            print(f"Traitement terminé. Résultats sauvegardés dans: {output_file}")
-            self.print_statistics(results_df)
-            
-            return results_df
-            
-        except Exception as e:
-            print(f"Erreur lors du traitement du fichier: {e}")
-            return None
+        # Traitement des mots-clés
+        results = []
+        for _, row in df.iterrows():
+            keyword = str(row[keyword_column])
+            if pd.notna(keyword) and keyword.strip():
+                main_cat, sub_cat, confidence = self.categorize_keyword(keyword)
+                
+                # Création d'une ligne de résultat
+                result_row = {
+                    'Mot-clé': keyword,
+                    'Catégorie principale': main_cat,
+                    'Sous-catégorie': sub_cat,
+                    'Score de confiance': round(confidence, 2)
+                }
+                
+                # Ajout des autres colonnes du DataFrame original
+                for col in df.columns:
+                    if col != keyword_column:
+                        result_row[f'Original_{col}'] = row[col]
+                
+                results.append(result_row)
+        
+        return pd.DataFrame(results)
     
-    def print_statistics(self, df: pd.DataFrame):
+    def get_statistics(self, df: pd.DataFrame) -> Dict:
         """
-        Affiche des statistiques sur la catégorisation
+        Retourne des statistiques sur la catégorisation
         """
-        print("\n=== STATISTIQUES DE CATÉGORISATION ===")
-        print(f"Nombre total de mots-clés traités: {len(df)}")
-        
-        # Répartition par catégorie principale
-        print("\nRépartition par catégorie principale:")
-        main_cats = df['Catégorie principale'].value_counts()
-        for cat, count in main_cats.items():
-            percentage = (count / len(df)) * 100
-            print(f"  {cat}: {count} ({percentage:.1f}%)")
-        
-        # Scores de confiance moyens
-        avg_confidence = df['Score de confiance'].mean()
-        print(f"\nScore de confiance moyen: {avg_confidence:.2f}")
-        
-        # Mots-clés non classés
-        unclassified = df[df['Catégorie principale'] == 'Non classé']
-        if len(unclassified) > 0:
-            print(f"\nMots-clés non classés ({len(unclassified)}):")
-            for keyword in unclassified['Mot-clé'].head(10):
-                print(f"  - {keyword}")
-            if len(unclassified) > 10:
-                print(f"  ... et {len(unclassified) - 10} autres")
+        stats = {
+            'total_keywords': len(df),
+            'main_categories': df['Catégorie principale'].value_counts().to_dict(),
+            'avg_confidence': df['Score de confiance'].mean(),
+            'unclassified': df[df['Catégorie principale'] == 'Non classé']['Mot-clé'].tolist()
+        }
+        return stats
 
 
 def main():
     """
-    Fonction principale pour utiliser le script
+    Application Streamlit principale
     """
-    # Exemple d'utilisation
-    categorizer = KeywordCategorizer()
+    st.set_page_config(
+        page_title="Catégoriseur de mots-clés",
+        page_icon="🏷️",
+        layout="wide"
+    )
     
-    # Optionnel: Ajouter des catégories personnalisées
-    categorizer.add_category("Finance", "Banque", ["banque", "crédit", "prêt", "compte"])
-    categorizer.add_category("Finance", "Assurance", ["assurance", "garantie", "police", "sinistre"])
+    st.title("🏷️ Catégoriseur de mots-clés")
+    st.markdown("Uploadez votre fichier Excel ou CSV pour catégoriser automatiquement vos mots-clés.")
     
-    # Exemple de traitement d'un fichier
-    # categorizer.process_file("mots_cles.xlsx", "mots_cles_categorises.xlsx", "A")
+    # Initialisation du catégoriseur dans la session
+    if 'categorizer' not in st.session_state:
+        st.session_state.categorizer = KeywordCategorizer()
     
-    # Sauvegarde de la configuration
-    categorizer.save_config("config_categories.json")
+    # Sidebar pour la configuration
+    with st.sidebar:
+        st.header("⚙️ Configuration")
+        
+        # Gestion des catégories
+        with st.expander("🏷️ Gérer les catégories"):
+            st.subheader("Ajouter une catégorie")
+            new_main_cat = st.text_input("Catégorie principale", key="new_main")
+            new_sub_cat = st.text_input("Sous-catégorie", key="new_sub")
+            new_keywords = st.text_area("Mots-clés (un par ligne)", key="new_keywords")
+            
+            if st.button("Ajouter catégorie"):
+                if new_main_cat and new_sub_cat and new_keywords:
+                    keywords_list = [kw.strip() for kw in new_keywords.split('\n') if kw.strip()]
+                    st.session_state.categorizer.add_category(new_main_cat, new_sub_cat, keywords_list)
+                    st.success(f"Catégorie '{new_main_cat} > {new_sub_cat}' ajoutée!")
+                    st.rerun()
+                else:
+                    st.error("Veuillez remplir tous les champs")
+        
+        # Affichage des catégories actuelles
+        with st.expander("📋 Catégories actuelles"):
+            for main_cat, sub_cats in st.session_state.categorizer.categories.items():
+                st.write(f"**{main_cat}**")
+                for sub_cat, keywords in sub_cats.items():
+                    st.write(f"  - {sub_cat}: {', '.join(keywords[:5])}")
+                    if len(keywords) > 5:
+                        st.write(f"    ... et {len(keywords) - 5} autres")
     
-    print("Script de catégorisation initialisé.")
-    print("Utilisez categorizer.process_file('input.xlsx', 'output.xlsx', 'A') pour traiter un fichier.")
+    # Interface principale
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.header("📁 Upload du fichier")
+        uploaded_file = st.file_uploader(
+            "Choisissez votre fichier",
+            type=['xlsx', 'xls', 'csv'],
+            help="Formats supportés: Excel (.xlsx, .xls) et CSV"
+        )
+        
+        if uploaded_file is not None:
+            try:
+                # Lecture du fichier
+                if uploaded_file.name.endswith('.csv'):
+                    df = pd.read_csv(uploaded_file, encoding='utf-8')
+                else:
+                    df = pd.read_excel(uploaded_file)
+                
+                st.success(f"Fichier chargé: {len(df)} lignes")
+                
+                # Sélection de la colonne des mots-clés
+                keyword_column = st.selectbox(
+                    "Colonne contenant les mots-clés:",
+                    options=df.columns.tolist(),
+                    help="Sélectionnez la colonne qui contient vos mots-clés"
+                )
+                
+                # Aperçu des données
+                st.subheader("📊 Aperçu des données")
+                st.dataframe(df.head(), use_container_width=True)
+                
+                # Bouton de traitement
+                if st.button("🚀 Lancer la catégorisation", type="primary"):
+                    with st.spinner("Traitement en cours..."):
+                        try:
+                            # Traitement
+                            results_df = st.session_state.categorizer.process_dataframe(df, keyword_column)
+                            
+                            # Sauvegarde dans la session
+                            st.session_state.results_df = results_df
+                            st.session_state.stats = st.session_state.categorizer.get_statistics(results_df)
+                            
+                            st.success("Catégorisation terminée!")
+                            
+                        except Exception as e:
+                            st.error(f"Erreur lors du traitement: {str(e)}")
+                            
+            except Exception as e:
+                st.error(f"Erreur lors de la lecture du fichier: {str(e)}")
+    
+    with col2:
+        st.header("📊 Résultats")
+        
+        if 'results_df' in st.session_state:
+            results_df = st.session_state.results_df
+            stats = st.session_state.stats
+            
+            # Métriques
+            col_metrics = st.columns(3)
+            with col_metrics[0]:
+                st.metric("Total mots-clés", stats['total_keywords'])
+            with col_metrics[1]:
+                st.metric("Score moyen", f"{stats['avg_confidence']:.2f}")
+            with col_metrics[2]:
+                st.metric("Non classés", len(stats['unclassified']))
+            
+            # Graphique des catégories
+            st.subheader("📈 Répartition par catégorie")
+            main_cats_df = pd.DataFrame(
+                list(stats['main_categories'].items()),
+                columns=['Catégorie', 'Nombre']
+            )
+            st.bar_chart(main_cats_df.set_index('Catégorie'))
+            
+            # Résultats détaillés
+            st.subheader("📋 Résultats détaillés")
+            
+            # Filtres
+            filter_col1, filter_col2 = st.columns(2)
+            with filter_col1:
+                filter_category = st.selectbox(
+                    "Filtrer par catégorie:",
+                    options=["Toutes"] + list(stats['main_categories'].keys())
+                )
+            with filter_col2:
+                min_confidence = st.slider(
+                    "Score minimum:",
+                    min_value=0.0,
+                    max_value=1.0,
+                    value=0.0,
+                    step=0.1
+                )
+            
+            # Application des filtres
+            filtered_df = results_df.copy()
+            if filter_category != "Toutes":
+                filtered_df = filtered_df[filtered_df['Catégorie principale'] == filter_category]
+            filtered_df = filtered_df[filtered_df['Score de confiance'] >= min_confidence]
+            
+            st.dataframe(filtered_df, use_container_width=True)
+            
+            # Téléchargement
+            st.subheader("💾 Télécharger les résultats")
+            
+            # Conversion en Excel
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                filtered_df.to_excel(writer, sheet_name='Résultats', index=False)
+                
+                # Feuille des statistiques
+                stats_df = pd.DataFrame([
+                    ['Total mots-clés', stats['total_keywords']],
+                    ['Score moyen', f"{stats['avg_confidence']:.2f}"],
+                    ['Non classés', len(stats['unclassified'])]
+                ], columns=['Métrique', 'Valeur'])
+                stats_df.to_excel(writer, sheet_name='Statistiques', index=False)
+            
+            excel_data = output.getvalue()
+            
+            col_download = st.columns(2)
+            with col_download[0]:
+                st.download_button(
+                    label="📥 Télécharger Excel",
+                    data=excel_data,
+                    file_name="mots_cles_categorises.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            
+            with col_download[1]:
+                csv_data = filtered_df.to_csv(index=False, encoding='utf-8')
+                st.download_button(
+                    label="📥 Télécharger CSV",
+                    data=csv_data,
+                    file_name="mots_cles_categorises.csv",
+                    mime="text/csv"
+                )
+            
+            # Mots-clés non classés
+            if stats['unclassified']:
+                with st.expander(f"⚠️ Mots-clés non classés ({len(stats['unclassified'])})"):
+                    for keyword in stats['unclassified'][:20]:
+                        st.write(f"- {keyword}")
+                    if len(stats['unclassified']) > 20:
+                        st.write(f"... et {len(stats['unclassified']) - 20} autres")
+        
+        else:
+            st.info("Uploadez un fichier et lancez la catégorisation pour voir les résultats ici.")
 
 
 if __name__ == "__main__":
     main()
-
-
-# EXEMPLE D'UTILISATION RAPIDE:
-"""
-# 1. Initialisation
-categorizer = KeywordCategorizer()
-
-# 2. Traitement d'un fichier
-df_results = categorizer.process_file(
-    input_file="mes_mots_cles.xlsx",
-    output_file="mots_cles_categorises.xlsx",
-    keyword_column="A",  # ou le nom de la colonne
-    additional_columns=["B", "C"]  # colonnes supplémentaires à conserver
-)
-
-# 3. Ajout de nouvelles catégories
-categorizer.add_category("Voyage", "Transport", ["avion", "train", "bus", "voiture"])
-categorizer.add_category("Voyage", "Hébergement", ["hotel", "camping", "airbnb"])
-
-# 4. Sauvegarde de la configuration
-categorizer.save_config("ma_config.json")
-"""
