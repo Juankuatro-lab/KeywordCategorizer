@@ -407,10 +407,7 @@ def main():
                 # Distribution des scores
                 st.subheader("Distribution des scores de similarité")
                 
-                # Créer un histogramme avec matplotlib ou utiliser bar_chart
-                import matplotlib.pyplot as plt
-                
-                # Créer les bins pour l'histogramme
+                # Créer les bins pour l'histogramme sans matplotlib
                 bins = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
                 hist_data = pd.cut(stats_df['Score_similarite'], bins=bins, include_lowest=True).value_counts().sort_index()
                 
