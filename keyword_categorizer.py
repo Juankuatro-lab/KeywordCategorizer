@@ -6,14 +6,50 @@ import io
 from typing import Dict, List, Tuple, Optional
 from difflib import SequenceMatcher
 import unicodedata
+import numpy as np
+
+# Imports pour NLP avancé
+try:
+    from sentence_transformers import SentenceTransformer
+    from sklearn.metrics.pairwise import cosine_similarity
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    NLP_AVAILABLE = True
+except ImportError:
+    NLP_AVAILABLE = False
 
 class AdvancedKeywordCategorizer:
     """
-    Catégoriseur avancé qui préserve la structure du fichier d'entrée
+    Catégoriseur avancé avec IA qui préserve la structure du fichier d'entrée
     """
     
     def __init__(self):
         self.categories = {}
+        self.use_advanced_nlp = False
+        self.model = None
+        self.tfidf_vectorizer = None
+        
+        # Tentative d'initialisation du modèle NLP
+        if NLP_AVAILABLE:
+            try:
+                st.info("Chargement du modèle de langue avancé...")
+                # Modèle multilingue optimisé
+                self.model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+                self.tfidf_vectorizer = TfidfVectorizer(
+                    ngram_range=(1, 2),
+                    max_features=1000,
+                    stop_words=None,
+                    lowercase=True
+                )
+                self.use_advanced_nlp = True
+                st.success("✅ Modèle NLP avancé chargé avec succès!")
+            except Exception as e:
+                st.warning(f"⚠️ Impossible de charger le modèle NLP avancé: {str(e)}")
+                st.info("📝 Utilisation de l'algorithme de base")
+                self.use_advanced_nlp = False
+        else:
+            st.warning("⚠️ Dépendances NLP manquantes. Installation recommandée :")
+            st.code("pip install sentence-transformers scikit-learn torch")
+            st.info("📝 Utilisation de l'algorithme de base")
     
     def normalize_text(self, text: str) -> str:
         """
@@ -30,9 +66,9 @@ class AdvancedKeywordCategorizer:
         text = re.sub(r'\s+', ' ', text).strip()
         return text
     
-    def calculate_similarity(self, text1: str, text2: str) -> float:
+    def calculate_similarity_basic(self, text1: str, text2: str) -> float:
         """
-        Calcule la similarité entre deux textes avec plusieurs méthodes
+        Calcule la similarité entre deux textes avec l'algorithme de base
         """
         text1_norm = self.normalize_text(text1)
         text2_norm = self.normalize_text(text2)
@@ -63,6 +99,83 @@ class AdvancedKeywordCategorizer:
         
         return final_score
     
+    def calculate_similarity_advanced(self, keyword: str, category_terms: List[str]) -> Tuple[str, float]:
+        """
+        Calcule la similarité avec des embeddings sémantiques avancés
+        """
+        try:
+            # Créer les embeddings
+            keyword_embedding = self.model.encode([keyword])
+            terms_embeddings = self.model.encode(category_terms)
+            
+            # Calculer la similarité cosinus
+            similarities = cosine_similarity(keyword_embedding, terms_embeddings)[0]
+            
+            # Trouver le meilleur match
+            best_idx = np.argmax(similarities)
+            best_term = category_terms[best_idx]
+            best_score = similarities[best_idx]
+            
+            # Bonus pour correspondance exacte ou partielle
+            keyword_norm = self.normalize_text(keyword)
+            for i, term in enumerate(category_terms):
+                term_norm = self.normalize_text(term)
+                
+                # Correspondance exacte
+                if keyword_norm == term_norm:
+                    return term, 1.0
+                
+                # Correspondance partielle forte
+                if keyword_norm in term_norm or term_norm in keyword_norm:
+                    if similarities[i] + 0.3 > best_score:
+                        best_score = min(1.0, similarities[i] + 0.3)
+                        best_term = term
+                        best_idx = i
+            
+            return best_term, float(best_score)
+            
+        except Exception as e:
+            st.warning(f"Erreur dans l'analyse avancée: {str(e)}")
+            # Fallback vers l'algorithme de base
+            best_score = 0.0
+            best_term = category_terms[0]
+            
+            for term in category_terms:
+                score = self.calculate_similarity_basic(keyword, term)
+                if score > best_score:
+                    best_score = score
+                    best_term = term
+            
+            return best_term, best_score
+    
+    def calculate_tfidf_similarity(self, keyword: str, all_terms: List[str]) -> Dict[str, float]:
+        """
+        Calcule la similarité TF-IDF pour une analyse complémentaire
+        """
+        try:
+            # Préparer le corpus
+            corpus = [keyword] + all_terms
+            
+            # Vectorisation TF-IDF
+            tfidf_matrix = self.tfidf_vectorizer.fit_transform(corpus)
+            
+            # Similarité cosinus
+            keyword_vector = tfidf_matrix[0:1]
+            terms_vectors = tfidf_matrix[1:]
+            
+            similarities = cosine_similarity(keyword_vector, terms_vectors)[0]
+            
+            # Créer le dictionnaire de scores
+            scores = {}
+            for i, term in enumerate(all_terms):
+                scores[term] = float(similarities[i])
+                
+            return scores
+            
+        except Exception as e:
+            # Retour aux scores de base
+            return {term: self.calculate_similarity_basic(keyword, term) for term in all_terms}
+    
     def set_categories(self, categories_dict: Dict[str, List[str]]):
         """
         Définit les catégories avec leurs termes de référence
@@ -71,7 +184,7 @@ class AdvancedKeywordCategorizer:
     
     def categorize_keyword(self, keyword: str) -> Tuple[str, str, float]:
         """
-        Trouve OBLIGATOIREMENT la meilleure catégorie pour un mot-clé
+        Trouve OBLIGATOIREMENT la meilleure catégorie pour un mot-clé avec IA avancée
         """
         if not self.categories:
             return ("Aucune catégorie", "Non défini", 0.0)
@@ -80,15 +193,56 @@ class AdvancedKeywordCategorizer:
         best_term = None
         best_score = -1.0
         
-        # Parcours de toutes les catégories
-        for category_name, terms_list in self.categories.items():
-            for term in terms_list:
-                similarity = self.calculate_similarity(keyword, term)
+        if self.use_advanced_nlp:
+            # Approche IA avancée
+            try:
+                # Préparer tous les termes pour l'analyse globale
+                all_terms = []
+                term_to_category = {}
                 
-                if similarity > best_score:
-                    best_score = similarity
-                    best_category = category_name
-                    best_term = term
+                for category_name, terms_list in self.categories.items():
+                    for term in terms_list:
+                        all_terms.append(term)
+                        term_to_category[term] = category_name
+                
+                # Analyse sémantique par catégorie
+                category_scores = {}
+                
+                for category_name, terms_list in self.categories.items():
+                    matched_term, score = self.calculate_similarity_advanced(keyword, terms_list)
+                    category_scores[category_name] = (matched_term, score)
+                
+                # Analyse TF-IDF complémentaire
+                tfidf_scores = self.calculate_tfidf_similarity(keyword, all_terms)
+                
+                # Combinaison des scores
+                for category_name, (matched_term, semantic_score) in category_scores.items():
+                    # Score TF-IDF pour ce terme
+                    tfidf_score = tfidf_scores.get(matched_term, 0.0)
+                    
+                    # Score final combiné (70% sémantique, 30% TF-IDF)
+                    combined_score = (semantic_score * 0.7) + (tfidf_score * 0.3)
+                    
+                    if combined_score > best_score:
+                        best_score = combined_score
+                        best_category = category_name
+                        best_term = matched_term
+                
+            except Exception as e:
+                st.warning(f"Erreur dans l'analyse IA: {str(e)}")
+                # Fallback vers l'algorithme de base
+                self.use_advanced_nlp = False
+        
+        if not self.use_advanced_nlp:
+            # Approche de base en cas de problème
+            for category_name, terms_list in self.categories.items():
+                for term in terms_list:
+                    similarity = self.calculate_similarity_basic(keyword, term)
+                    
+                    if similarity > best_score:
+                        best_score = similarity
+                        best_category = category_name
+                        best_term = term
         
         # Si aucune similarité trouvée, attribuer à la première catégorie
         if best_category is None:
@@ -169,14 +323,22 @@ def main():
         st.markdown("""
         ### Description de l'outil
         
-        Cet outil permet de catégoriser automatiquement des mots-clés en préservant exactement la structure de votre fichier d'entrée. 
-        Il utilise un algorithme de similarité textuelle pour attribuer chaque mot-clé à la catégorie la plus appropriée.
+        Cet outil utilise **l'Intelligence Artificielle avancée** pour catégoriser automatiquement des mots-clés en préservant exactement la structure de votre fichier d'entrée. 
+        Il combine plusieurs techniques NLP de pointe pour une catégorisation précise et contextuelle.
+        
+        ### Technologies utilisées
+        
+        - **Embeddings sémantiques** : Modèle Sentence-BERT multilingue pour comprendre le sens
+        - **Similarité cosinus** : Mesure de proximité sémantique dans l'espace vectoriel
+        - **TF-IDF** : Analyse de fréquence des termes pour affiner les résultats
+        - **Algorithme hybride** : Combinaison de 3 approches pour maximiser la précision
         
         ### Fonctionnement
         
         - **Attribution forcée** : Chaque mot-clé est obligatoirement attribué à une catégorie
         - **Préservation de structure** : Votre fichier garde exactement sa mise en forme originale
-        - **Similarité intelligente** : Normalisation du texte, suppression des accents, comparaison par mots et séquences
+        - **IA contextuelle** : Comprend le sens et le contexte, pas seulement les mots-clés
+        - **Multilingue** : Fonctionne en français, anglais et autres langues européennes
         - **Colonnes ciblées** : Seules les colonnes que vous spécifiez sont modifiées
         
         ### Étapes d'utilisation
@@ -184,8 +346,8 @@ def main():
         1. **Configurez vos catégories** : Créez vos catégories et ajoutez les termes de référence pour chacune
         2. **Importez votre fichier** : Chargez votre fichier Excel ou CSV avec la structure finale souhaitée
         3. **Configurez les colonnes** : Sélectionnez la colonne des mots-clés et assignez les colonnes de sortie pour chaque catégorie
-        4. **Lancez le traitement** : L'outil traite tous vos mots-clés et les place dans les bonnes colonnes
-        5. **Exportez les résultats** : Téléchargez votre fichier final avec les statistiques
+        4. **Lancez le traitement IA** : L'outil analyse sémantiquement tous vos mots-clés et les place dans les bonnes colonnes
+        5. **Exportez les résultats** : Téléchargez votre fichier final avec les statistiques de confiance
         
         ### Format de fichier attendu
         
@@ -193,6 +355,13 @@ def main():
         - Une colonne avec vos mots-clés à catégoriser
         - Des colonnes vides ou existantes où placer les résultats de chaque catégorie
         - Toute autre donnée que vous souhaitez conserver (elle sera préservée)
+        
+        ### Scores de confiance
+        
+        - **0.8-1.0** : Correspondance excellente (IA très confiante)
+        - **0.6-0.8** : Correspondance bonne (contexte sémantique fort)
+        - **0.4-0.6** : Correspondance acceptable (similarité détectée)
+        - **0.0-0.4** : Correspondance faible (attribution par défaut)
         """)
     
     # CSS pour les boutons en couleur fcf192
